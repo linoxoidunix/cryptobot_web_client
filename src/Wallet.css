@@ -1,0 +1,27 @@
+.wallet {
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    margin-top: 20px;
+  }
+  
+  .wallet.dark-mode {
+    background-color: #333;
+    color: #fff;
+    border-color: #555;
+  }
+  
+  .wallet.light-mode {
+    background-color: #fff;
+    color: #000;
+    border-color: #ddd;
+  }
+  
+  .wallet-balance p {
+    margin: 5px 0;
+  }
+  
+  .connection-status {
+    color: orange;
+  }
+  

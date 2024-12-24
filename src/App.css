@@ -1,0 +1,74 @@
+light-mode {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+dark-mode {
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.order-book {
+  font-family: Arial, sans-serif;
+  width: 60%;
+  margin: 20px auto;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .order-book {
+  background-color: #1e1e1e;
+  color: #ffffff;
+  border-color: #444444;
+}
+
+.theme-toggle-btn {
+  margin: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  transition: background-color 0.3s ease;
+}
+
+.theme-toggle-btn:hover {
+  background-color: #0056b3;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  text-align: left;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 8px;
+}
+
+tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+td, th {
+  padding: 8px;
+  text-align: left;
+}
+
+.buy-price {
+  color: green;
+}
+
+.sell-price {
+  color: red;
+}
