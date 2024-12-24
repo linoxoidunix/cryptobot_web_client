@@ -13,10 +13,11 @@ import {
   InputLabel,
   Box,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles"; // Подключение темы
+// import { useTheme } from "@mui/material/styles"; // Подключение темы
 import { ThemeContext } from "./ThemeContext";
 import OrderBook from "./OrderBook";
 import WalletList from "./WalletList";
+import PnLList from "./PnLList";
 
 const App = () => {
   const { isDarkMode, toggleTheme } = useContext(ThemeContext);
@@ -24,7 +25,7 @@ const App = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ exchange: "", pair: "" });
   const [tabValue, setTabValue] = useState(0);
-  const theme = useTheme(); // Доступ к теме
+  // const theme = useTheme(); // Доступ к теме
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => {
@@ -66,6 +67,7 @@ const App = () => {
       {/* Вкладки */}
       <Tabs value={tabValue} onChange={handleChangeTab} centered>
         <Tab label="OrderBook" />
+        <Tab label="PnL" />
         <Tab label="Wallet" />
         <Tab label="Dashboard" />
         <Tab label="Settings" />
@@ -100,9 +102,10 @@ const App = () => {
           </div>
         </div>
       )}
-      {tabValue === 1 && <WalletList />}
-      {tabValue === 2 && <h2>Dashboard Content</h2>}
-      {tabValue === 3 && <h2>Settings</h2>}
+      {tabValue === 1 && <PnLList />}
+      {tabValue === 2 && <WalletList />}
+      {tabValue === 3 && <h2>Dashboard Content</h2>}
+      {tabValue === 4 && <h2>Settings</h2>}
 
       {/* Модальное окно */}
       <Dialog open={isModalOpen} onClose={closeModal}>
