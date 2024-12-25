@@ -1,114 +1,154 @@
-import React, { useState, useEffect} from "react";
-// import { ThemeContext } from "./ThemeContext"; // Подключение контекста темы
-import { useTheme } from "@mui/material/styles"; // Подключение темы
-import "./OrderBook.css";
+import React, { useState, useEffect } from "react";
+import { Box, Typography, Checkbox, FormControlLabel, Button, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
 
 const OrderBook = () => {
-  const [buyOrders, setBuyOrders] = useState([]);
-  const [sellOrders, setSellOrders] = useState([]);
-  // const { isDarkMode } = useContext(ThemeContext); // Используем тему из контекста
-  const theme = useTheme(); // Доступ к теме
+  const defaultOrderBook = [
+    { id: 1, exchange: "binance", pair: "BTC/USDT", bestBid: "Fetching data...", bestOffer: "Fetching data...", spread: "Fetching data..." },
+    { id: 2, exchange: "binance", pair: "ETH/USDT", bestBid: "Fetching data...", bestOffer: "Fetching data...", spread: "Fetching data..." },
+    { id: 3, exchange: "bybit", pair: "XRP/USDT", bestBid: "Fetching data...", bestOffer: "Fetching data...", spread: "Fetching data..." },
+  ];
 
+  const [orderBook, setOrderBook] = useState(defaultOrderBook);
+  const [filterModel, setFilterModel] = useState({
+    items: [
+      { columnField: "exchange", operatorValue: "contains", value: "" },
+      { columnField: "pair", operatorValue: "contains", value: "" },
+      { columnField: "bestBid", operatorValue: "contains", value: "" },
+      { columnField: "bestOffer", operatorValue: "contains", value: "" },
+      { columnField: "spread", operatorValue: "contains", value: "" },
+    ],
+  });
+  const [caseSensitive, setCaseSensitive] = useState(false); // State for the case-sensitive checkbox
+  const [openFilterDialog, setOpenFilterDialog] = useState(false); // State to open/close filter dialog
+
+  const columns = [
+    { field: "exchange", headerName: "Exchange", width: 150 },
+    { field: "pair", headerName: "Trading Pair", width: 150 },
+    { field: "bestBid", headerName: "Best Bid", width: 150 },
+    { field: "bestOffer", headerName: "Best Offer", width: 150 },
+    { field: "spread", headerName: "Spread", width: 150 },
+  ];
+
+  // Simulating WebSocket connection
   useEffect(() => {
-    const connectWebSocket = () => {
-      const socket = new WebSocket("ws://localhost:10999/orderbook");
+    const socket = new WebSocket("ws://your-websocket-url");
 
-      socket.onopen = () => {
-        console.log("WebSocket connected");
-      };
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const { exchange, pair, bestBid, bestOffer, spread } = data;
 
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.buyOrders && data.sellOrders) {
-            setBuyOrders(data.buyOrders);
-            setSellOrders(data.sellOrders);
-          }
-        } catch (err) {
-          console.error("Error parsing message:", err);
-        }
-      };
-
-      socket.onerror = (error) => {
-        console.error("WebSocket error:", error);
-      };
-
-      socket.onclose = (event) => {
-        console.log(`WebSocket disconnected: code=${event.code}, reason=${event.reason}`);
-        setTimeout(() => {
-          console.log("Reconnecting...");
-          //connectWebSocket(); // Попытка переподключения
-        }, 3000);
-      };
-
-      return socket;
+      setOrderBook((prevOrderBook) =>
+        prevOrderBook.map((order) =>
+          order.exchange === exchange && order.pair === pair
+            ? { ...order, bestBid, bestOffer, spread }
+            : order
+        )
+      );
     };
 
-    //const socket = connectWebSocket();
     return () => {
-      console.log("Component unmounted");
-      //socket.close();
+      socket.close();
     };
   }, []);
 
-  return (
-    // <div className={`order-book ${isDarkMode ? "dark-mode" : "light-mode"}`}>
-    <div
-      className="order-book"
-      style={{
-        backgroundColor: theme.palette.background.secondary, // Использование цвета фона
-        color: theme.palette.text.secondary, // Использование цвета текста
-        transition: "background-color 0.3s, color 0.3s", // Плавный переход
-        marginTop: "20px", // Добавляем отступ сверху
-        border: "1px solid " + theme.palette.divider, // Добавляем границу с цветом из палитры
-        borderRadius: "8px", // Опционально: добавляем скругление углов
-      }}
-    >
-      <h2>Order Book</h2>
-      <div className="order-book-grid">
-        {/* Buy Orders */}
-        <div className="order-column">
-          <h3>Buy Orders</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Price</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {buyOrders.map((order, index) => (
-                <tr key={index}>
-                  <td className="buy-price">{order.price.toFixed(2)}</td>
-                  <td>{order.amount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+  const handleFilterModelChange = (newFilterModel) => {
+    if (JSON.stringify(newFilterModel.items) !== JSON.stringify(filterModel.items)) {
+      setFilterModel(newFilterModel);
+    }
+  };
 
-        {/* Sell Orders */}
-        <div className="order-column">
-          <h3>Sell Orders</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Price</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sellOrders.map((order, index) => (
-                <tr key={index}>
-                  <td className="sell-price">{order.price.toFixed(2)}</td>
-                  <td>{order.amount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+  const handleCaseSensitiveChange = (event) => {
+    setCaseSensitive(event.target.checked); // Update checkbox state for case sensitivity
+  };
+
+  const handleOpenFilterDialog = () => {
+    setOpenFilterDialog(true); // Open the filter settings dialog
+  };
+
+  const handleCloseFilterDialog = () => {
+    setOpenFilterDialog(false); // Close the filter dialog
+  };
+
+  // Filtering the rows based on the filter model and case sensitivity
+  const filteredRows = orderBook.filter((order) => {
+    return filterModel.items.every((filter) => {
+      const { columnField, operatorValue, value } = filter;
+
+      // Get the cell value and convert it to a string
+      const cellValue = order[columnField] ? order[columnField].toString() : "";
+      const filterValue = value ? value : ""; // Use filter value if provided
+
+      const compareValue = caseSensitive ? cellValue : cellValue.toLowerCase(); // Check for case sensitivity
+      const compareFilter = caseSensitive ? filterValue : filterValue.toLowerCase();
+
+      switch (operatorValue) {
+        case "contains":
+          return compareValue.includes(compareFilter); // Apply filtering with case sensitivity
+        case "equals":
+          return compareValue === compareFilter;
+        case "regex": // Added regex support
+          try {
+            const regex = new RegExp(filterValue, "i"); // "i" flag for ignoring case
+            return regex.test(cellValue);
+          } catch (error) {
+            console.error("Invalid regular expression:", filterValue);
+            return false; // In case of invalid regex, skip the row
+          }
+        default:
+          return true;
+      }
+    });
+  });
+
+  return (
+    <Box sx={{ height: 400, padding: 2 }}>
+      {/* Button to open filter settings dialog */}
+      <Button
+        variant="outlined"
+        color="primary"
+        onClick={handleOpenFilterDialog}
+        sx={{ marginBottom: 2 }} // Adds 20px bottom margin
+      >
+        Open Filter Settings
+      </Button>
+
+      {/* Filter settings dialog */}
+      <Dialog open={openFilterDialog} onClose={handleCloseFilterDialog}>
+        <DialogTitle>Filter Settings</DialogTitle>
+        <DialogContent>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={caseSensitive}
+                onChange={handleCaseSensitiveChange}
+                color="primary"
+              />
+            }
+            label="Case Sensitive"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseFilterDialog} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <DataGrid
+        rows={filteredRows}
+        columns={columns}
+        pageSize={5}
+        rowsPerPageOptions={[5]}
+        checkboxSelection
+        disableSelectionOnClick
+        filterModel={filterModel}
+        onFilterModelChange={handleFilterModelChange}
+        onRowSelectionModelChange={(selection) => {
+          console.log("Selected rows:", selection);
+        }}
+      />
+    </Box>
   );
 };
 

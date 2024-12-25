@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 // import { useTheme } from "@mui/material/styles"; // Подключение темы
 import { ThemeContext } from "./ThemeContext";
-import OrderBook from "./OrderBook";
+import OrderBook from "./OrderBook.js";
 import WalletList from "./WalletList";
 import PnLList from "./PnLList";
 
@@ -74,7 +74,7 @@ const App = () => {
       </Tabs>
 
       {/* Содержимое вкладок */}
-      {tabValue === 0 && (
+      {/* {tabValue === 0 && (
         <div className="orderbook-container">
           <Button
             variant="contained"
@@ -101,7 +101,8 @@ const App = () => {
             )}
           </div>
         </div>
-      )}
+      )} */}
+      {tabValue === 0 && <OrderBook />}
       {tabValue === 1 && <PnLList />}
       {tabValue === 2 && <WalletList />}
       {tabValue === 3 && <h2>Dashboard Content</h2>}
