@@ -1,67 +1,71 @@
 import React, { useState, useEffect } from "react";
-import { Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel } from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 
-const WalletList = () => {
-  const loadSavedWalletData = () => {
-    const savedWalletData = localStorage.getItem("walletData");
-    return savedWalletData ? JSON.parse(savedWalletData) : [];
+const Pnl = () => {
+  const loadSavedPNLData = () => {
+    const savedPNLData = sessionStorage.getItem("pnlData");
+    return savedPNLData ? JSON.parse(savedPNLData) : [];
   };
 
-  const [wallets, setWallets] = useState(loadSavedWalletData());
+  const [pnlData, setPnlData] = useState(loadSavedPNLData());
   const [filterModel, setFilterModel] = useState({
-    items: [{ columnField: "exchange", operatorValue: "contains", value: "" }],
+    items: [
+      { columnField: "exchange", operatorValue: "contains", value: "" },
+    ],
   });
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
-  const [filteredRows, setFilteredRows] = useState(wallets);
+  const [filteredRows, setFilteredRows] = useState(pnlData);
 
   const columns = [
     { field: "exchange", headerName: "Exchange", width: 150 },
-    { field: "ticker", headerName: "Ticker", width: 150 },
-    { field: "value", headerName: "Value", width: 200 },
+    { field: "pair", headerName: "Trading Pair", width: 150 },
+    { field: "realized", headerName: "Realized", width: 150 },
+    { field: "unrealized", headerName: "Unrealized", width: 150 },
+    { field: "lastUpdate", headerName: "Last Update", width: 180 },
   ];
 
   // WebSocket data simulation
   useEffect(() => {
     console.log("Initializing SharedWorker for PNL data...");
-
+  
     const worker = new SharedWorker("/sharedworker.js");
-
-    // Слушаем сообщения от SharedWorker
+  
+    // Listen for messages from the SharedWorker
     worker.port.onmessage = (event) => {
       console.log("Received message from SharedWorker:", event.data);
-
+  
       const data = event.data;
-
-      // Проверяем, что данные содержат необходимые ключи
+  
+      // Validate that the data contains the necessary keys
       const { exchange, trading_pair, realized, unrealized } = data || {};
       const currentTime = new Date().toLocaleString();
-
-      if (exchange && trading_pair && realized !== undefined && unrealized !== undefined) {
-        setWallets((prevWalletData) => {
-          const existingIndex = prevWalletData.findIndex(
-            (pnl) => pnl.exchange === exchange && pnl.pair === trading_pair
+  
+      if (exchange && trading_pair && realized && unrealized) {
+        setPnlData((prevPNLData) => {
+          const existingIndex = prevPNLData.findIndex(
+            (obj) => obj.exchange === exchange && obj.pair === trading_pair
           );
-
+  
           if (existingIndex !== -1) {
-            // Обновляем существующую запись
-            const updatedPNLData = prevWalletData.map((pnl, index) =>
+            // Update the existing record
+            const updatedPNLData = prevPNLData.map((obj, index) =>
               index === existingIndex
                 ? {
-                    ...pnl,
+                    ...obj,
                     realized,
                     unrealized,
                     lastUpdate: currentTime,
                   }
-                : pnl
+                : obj
             );
-            localStorage.setItem("walletData", JSON.stringify(updatedPNLData));
+            sessionStorage.setItem("pnlData", JSON.stringify(updatedPNLData));
             return updatedPNLData;
           } else {
-            // Добавляем новую запись
-            const newWalletData = [
-              ...prevWalletData,
+            // Add a new record
+            const newPNLData = [
+              ...prevPNLData,
               {
                 id: Date.now(),
                 exchange,
@@ -71,34 +75,33 @@ const WalletList = () => {
                 lastUpdate: currentTime,
               },
             ];
-            localStorage.setItem("walletData", JSON.stringify(newWalletData));
-            return newWalletData;
+            sessionStorage.setItem("pnlData", JSON.stringify(newPNLData));
+            return newPNLData;
           }
         });
       } else {
         console.warn("Invalid PNL data received:", data);
       }
     };
-
-    // Подписываемся на обновления PNL в SharedWorker
+  
+    // Subscribe to PNL updates in SharedWorker
     worker.port.postMessage({ action: "subscribe", key: "pnl" });
-
+  
     return () => {
       console.log("Unsubscribing from PNL updates...");
       worker.port.postMessage({ action: "unsubscribe", key: "pnl" });
       worker.port.close();
     };
   }, []);
-  
 
   // Apply filters
   useEffect(() => {
     const applyFilters = () => {
       const { columnField, operatorValue, value } = filterModel.items[0] || {};
-      const newFilteredRows = wallets.filter((wallet) => {
+      const newFilteredRows = pnlData.filter((pnl) => {
         if (!columnField || !operatorValue || !value) return true;
 
-        const cellValue = wallet[columnField]?.toString() || "";
+        const cellValue = pnl[columnField]?.toString() || "";
         const compareValue = caseSensitive ? cellValue : cellValue.toLowerCase();
         const compareFilter = caseSensitive ? value : value.toLowerCase();
 
@@ -111,7 +114,7 @@ const WalletList = () => {
             try {
               const regex = new RegExp(value, caseSensitive ? "" : "i");
               return regex.test(cellValue);
-            } catch {
+            } catch (e) {
               console.error("Invalid regex:", value);
               return false;
             }
@@ -124,25 +127,35 @@ const WalletList = () => {
     };
 
     applyFilters();
-  }, [filterModel, caseSensitive, wallets]);
+  }, [filterModel, caseSensitive, pnlData]);
 
-  // Handle filter model changes
+  // Handling filter model change
   const handleFilterModelChange = (newFilterModel) => {
     if (JSON.stringify(newFilterModel.items) !== JSON.stringify(filterModel.items)) {
       setFilterModel(newFilterModel);
     }
   };
 
-  // Handle clearing data
-  const handleClearData = () => {
-    setWallets([]);
-    setFilteredRows([]);
-    localStorage.removeItem("walletData");
+  // Handling case-sensitive checkbox change
+  const handleCaseSensitiveChange = (event) => {
+    setCaseSensitive(event.target.checked);
   };
 
-  // Handle dialog open/close
-  const handleOpenFilterDialog = () => setOpenFilterDialog(true);
-  const handleCloseFilterDialog = () => setOpenFilterDialog(false);
+  // Handling filter dialog open/close
+  const handleOpenFilterDialog = () => {
+    setOpenFilterDialog(true);
+  };
+
+  const handleCloseFilterDialog = () => {
+    setOpenFilterDialog(false);
+  };
+
+  // Clear all data in DataGrid
+  const handleClearData = () => {
+    setPnlData([]);
+    setFilteredRows([]);
+    sessionStorage.removeItem("pnlData");
+  };
 
   return (
     <Box sx={{ height: "100%", padding: 2 }}>
@@ -171,7 +184,7 @@ const WalletList = () => {
             control={
               <Checkbox
                 checked={caseSensitive}
-                onChange={(e) => setCaseSensitive(e.target.checked)}
+                onChange={handleCaseSensitiveChange}
                 color="primary"
               />
             }
@@ -194,9 +207,12 @@ const WalletList = () => {
         disableSelectionOnClick
         filterModel={filterModel}
         onFilterModelChange={handleFilterModelChange}
+        onRowSelectionModelChange={(selection) => {
+          console.log("Selected rows:", selection);
+        }}
       />
     </Box>
   );
 };
 
-export default WalletList;
+export default Pnl;
