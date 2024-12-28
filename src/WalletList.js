@@ -24,45 +24,72 @@ const WalletList = () => {
 
   // WebSocket data simulation
   useEffect(() => {
-    const socket = new WebSocket("ws://localhost:10999/ws");
+    console.log("Initializing SharedWorker for PNL data...");
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      const { exchange, ticker, value } = data.wallet;
+    const worker = new SharedWorker("/sharedworker.js");
 
-      setWallets((prevWallets) => {
-        const existingIndex = prevWallets.findIndex(
-          (wallet) => wallet.exchange === exchange && wallet.ticker === ticker
-        );
+    // Слушаем сообщения от SharedWorker
+    worker.port.onmessage = (event) => {
+      console.log("Received message from SharedWorker:", event.data);
 
-        if (existingIndex !== -1) {
-          // Update existing wallet entry
-          const updatedWallets = prevWallets.map((wallet, index) =>
-            index === existingIndex ? { ...wallet, value } : wallet
+      const data = event.data;
+
+      // Проверяем, что данные содержат необходимые ключи
+      const { exchange, trading_pair, realized, unrealized } = data || {};
+      const currentTime = new Date().toLocaleString();
+
+      if (exchange && trading_pair && realized !== undefined && unrealized !== undefined) {
+        setWallets((prevWalletData) => {
+          const existingIndex = prevWalletData.findIndex(
+            (pnl) => pnl.exchange === exchange && pnl.pair === trading_pair
           );
-          localStorage.setItem("walletData", JSON.stringify(updatedWallets));
-          return updatedWallets;
-        } else {
-          // Add new wallet entry
-          const newWallets = [
-            ...prevWallets,
-            {
-              id: Date.now(),
-              exchange,
-              ticker,
-              value,
-            },
-          ];
-          localStorage.setItem("walletData", JSON.stringify(newWallets));
-          return newWallets;
-        }
-      });
+
+          if (existingIndex !== -1) {
+            // Обновляем существующую запись
+            const updatedPNLData = prevWalletData.map((pnl, index) =>
+              index === existingIndex
+                ? {
+                    ...pnl,
+                    realized,
+                    unrealized,
+                    lastUpdate: currentTime,
+                  }
+                : pnl
+            );
+            localStorage.setItem("walletData", JSON.stringify(updatedPNLData));
+            return updatedPNLData;
+          } else {
+            // Добавляем новую запись
+            const newWalletData = [
+              ...prevWalletData,
+              {
+                id: Date.now(),
+                exchange,
+                pair: trading_pair,
+                realized,
+                unrealized,
+                lastUpdate: currentTime,
+              },
+            ];
+            localStorage.setItem("walletData", JSON.stringify(newWalletData));
+            return newWalletData;
+          }
+        });
+      } else {
+        console.warn("Invalid PNL data received:", data);
+      }
     };
+
+    // Подписываемся на обновления PNL в SharedWorker
+    worker.port.postMessage({ action: "subscribe", key: "pnl" });
 
     return () => {
-      socket.close();
+      console.log("Unsubscribing from PNL updates...");
+      worker.port.postMessage({ action: "unsubscribe", key: "pnl" });
+      worker.port.close();
     };
   }, []);
+  
 
   // Apply filters
   useEffect(() => {
@@ -118,7 +145,7 @@ const WalletList = () => {
   const handleCloseFilterDialog = () => setOpenFilterDialog(false);
 
   return (
-    <Box sx={{ height: 400, padding: 2 }}>
+    <Box sx={{ height: "100%", padding: 2 }}>
       <Button
         variant="outlined"
         color="primary"

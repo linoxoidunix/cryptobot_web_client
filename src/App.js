@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import {
   Tabs,
   Tab,
@@ -21,7 +21,7 @@ import PnLList from "./PnLList";
 
 const App = () => {
   const { isDarkMode, toggleTheme } = useContext(ThemeContext);
-  const [orderBooks, setOrderBooks] = useState([]);
+  // const [orderBooks, setOrderBooks] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ exchange: "", pair: "" });
   const [tabValue, setTabValue] = useState(0);
@@ -33,15 +33,15 @@ const App = () => {
     setFormData({ exchange: "", pair: "" });
   };
 
-  const handleAddOrderBook = () => {
-    const { exchange, pair } = formData;
-    if (exchange && pair) {
-      setOrderBooks((prev) => [...prev, { id: prev.length + 1, exchange, pair }]);
-      closeModal();
-    } else {
-      alert("Please fill out both fields.");
-    }
-  };
+  // const handleAddOrderBook = () => {
+  //   const { exchange, pair } = formData;
+  //   if (exchange && pair) {
+  //     setOrderBooks((prev) => [...prev, { id: prev.length + 1, exchange, pair }]);
+  //     closeModal();
+  //   } else {
+  //     alert("Please fill out both fields.");
+  //   }
+  // };
 
   const handleChangeTab = (event, newValue) => {
     setTabValue(newValue);
@@ -74,34 +74,6 @@ const App = () => {
       </Tabs>
 
       {/* Содержимое вкладок */}
-      {/* {tabValue === 0 && (
-        <div className="orderbook-container">
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={openModal}
-            style={{ marginBottom: "20px" }}
-          >
-            Add OrderBook
-          </Button>
-
-          <div 
-            className="orderbook-list"
-          >
-            {orderBooks.length === 0 ? (
-              <p>No order books available.</p>
-            ) : (
-              orderBooks.map((book, index) => (
-                <OrderBook
-                  key={book.id}
-                  exchange={book.exchange}
-                  pair={book.pair}
-                />
-              ))
-            )}
-          </div>
-        </div>
-      )} */}
       {tabValue === 0 && <OrderBook />}
       {tabValue === 1 && <PnLList />}
       {tabValue === 2 && <WalletList />}
@@ -143,12 +115,12 @@ const App = () => {
             </Select>
           </FormControl>
         </DialogContent>
-        <DialogActions>
+        {/* <DialogActions>
           <Button onClick={closeModal}>Cancel</Button>
           <Button variant="contained" color="primary" onClick={handleAddOrderBook}>
             Submit
           </Button>
-        </DialogActions>
+        </DialogActions> */}
       </Dialog>
     </Box>
   );

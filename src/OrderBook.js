@@ -29,53 +29,75 @@ const OrderBook = () => {
 
   // WebSocket data simulation
   useEffect(() => {
-    const socket = new WebSocket("ws://localhost:10999/ws");
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      const { exchange, trading_pair, best_bid, best_offer, spread } = data.orderBook;
-      const currentTime = new Date().toLocaleString(); // Get current time for "Last Update"
-
-      setOrderBook((prevOrderBook) => {
-        const existingIndex = prevOrderBook.findIndex(
-          (order) => order.exchange === exchange && order.pair === trading_pair
-        );
-        
-        if (existingIndex !== -1) {
-          const updatedOrderBook = prevOrderBook.map((order, index) =>
-            index === existingIndex
-              ? { 
-                  ...order, 
-                  bestBid: best_bid, 
-                  bestOffer: best_offer, 
-                  spread, 
-                  lastUpdate: currentTime // Update lastUpdate field
-                }
-              : order
+    console.log('Initializing SharedWorker...');  // Логирование начала инициализации
+  
+    const worker = new SharedWorker("/sharedworker.js");
+  
+    // Listen to messages from the shared worker
+    worker.port.onmessage = (event) => {
+      console.log('Received message from SharedWorker:', event.data);  // Логирование полученного сообщения от worker
+  
+      const data = event.data;
+      if (data && data.exchange && data.trading_pair && data.best_bid && data.best_offer && data.spread) {
+        const { exchange, trading_pair, best_bid, best_offer, spread } = data;
+        const currentTime = new Date().toLocaleString();
+  
+        console.log(`Updating order book for ${exchange} - ${trading_pair}...`);  // Логирование обновления данных для определенного exchange
+  
+        // Update orderBook state with the new data
+        setOrderBook((prevOrderBook) => {
+          const existingIndex = prevOrderBook.findIndex(
+            (order) => order.exchange === exchange && order.pair === trading_pair
           );
-          localStorage.setItem("orderBook", JSON.stringify(updatedOrderBook)); // Save updated data to localStorage
-          return updatedOrderBook;
-        } else {
-          const newOrderBook = [
-            ...prevOrderBook,
-            { 
-              id: Date.now(), 
-              exchange, 
-              pair: trading_pair, 
-              bestBid: best_bid, 
-              bestOffer: best_offer, 
-              spread, 
-              lastUpdate: currentTime // Add lastUpdate field
-            },
-          ];
-          localStorage.setItem("orderBook", JSON.stringify(newOrderBook)); // Save new data to localStorage
-          return newOrderBook;
-        }
-      });
+  
+          if (existingIndex !== -1) {
+            const updatedOrderBook = prevOrderBook.map((order, index) =>
+              index === existingIndex
+                ? { 
+                    ...order, 
+                    bestBid: best_bid, 
+                    bestOffer: best_offer, 
+                    spread, 
+                    lastUpdate: currentTime 
+                  }
+                : order
+            );
+            localStorage.setItem("orderBook", JSON.stringify(updatedOrderBook)); // Save updated data to localStorage
+            console.log(`Order book updated: ${exchange} - ${trading_pair}`);  // Логирование успешного обновления
+            return updatedOrderBook;
+          } else {
+            const newOrderBook = [
+              ...prevOrderBook,
+              { 
+                id: Date.now(), 
+                exchange, 
+                pair: trading_pair, 
+                bestBid: best_bid, 
+                bestOffer: best_offer, 
+                spread, 
+                lastUpdate: currentTime 
+              },
+            ];
+            localStorage.setItem("orderBook", JSON.stringify(newOrderBook)); // Save new data to localStorage
+            console.log(`New order book entry added: ${exchange} - ${trading_pair}`);  // Логирование добавления нового элемента
+            return newOrderBook;
+          }
+        });
+      } else {
+        console.warn('Invalid message data received:', data);  // Логирование ошибок в данных
+      }
     };
-
+  
+    // Subscribe to a key when component mounts (adjust key as needed)
+    console.log('Subscribing to key: orderBook');
+    worker.port.postMessage({ action: "subscribe", key: "orderBook" });
+  
     return () => {
-      socket.close();
+      // Unsubscribe from the worker when the component unmounts
+      console.log('Unsubscribing from key: orderBook');
+      worker.port.postMessage({ action: "unsubscribe", key: "orderBook" });
+      worker.port.close();
+      console.log('Worker port closed');
     };
   }, []);
 
