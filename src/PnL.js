@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useTheme } from "@mui/material/styles"; // Подключение темы
-// import "./Wallet.css"; // Стили для PnL
+import { useTheme } from "@mui/material/styles";
 
 const PnL = ({ exchange, pair }) => {
-  const [pnl, setPnL] = useState({}); // PnL для пары
-  const [isConnected, setIsConnected] = useState(false);
-  const theme = useTheme(); // Доступ к теме
+  const [pnl, setPnL] = useState({}); // Состояние для PnL
+  const [isConnected, setIsConnected] = useState(false); // Состояние подключения
+  const theme = useTheme(); // Использование темы MUI
 
   useEffect(() => {
     const connectWebSocket = () => {
-      const socket = new WebSocket(`ws://localhost:10999/pnl/${exchange}/${pair}`);
+        const socket = new WebSocket("ws://localhost:10999/ws");
 
       socket.onopen = () => {
         console.log(`WebSocket connected for ${exchange} ${pair}`);
@@ -48,25 +47,25 @@ const PnL = ({ exchange, pair }) => {
   }, [exchange, pair]);
 
   return (
-    <div  className="pnl"
-        style={{
-        backgroundColor: theme.palette.background.secondary, // Использование цвета фона
-        color: theme.palette.text.secondary, // Использование цвета текста
-        transition: "background-color 0.3s, color 0.3s", // Плавный переход
-        marginTop: "20px", // Добавляем отступ сверху
-        border: "1px solid " + theme.palette.divider, // Добавляем границу с цветом из палитры
-        borderRadius: "8px", // Опционально: добавляем скругление углов
+    <div
+      style={{
+        backgroundColor: theme.palette.background.paper, // Цвет фона из темы
+        color: theme.palette.text.primary, // Цвет текста из темы
+        transition: "background-color 0.3s, color 0.3s", // Плавные переходы
+        marginTop: "20px",
+        border: `1px solid ${theme.palette.divider}`, // Граница из темы
+        borderRadius: "8px",
         padding: "20px",
-        }}
-      >
-         <p>
-            Exchange: <strong>{exchange}</strong>
-        </p>
-        <p>
-            Pair: <strong>{pair}</strong>
-        </p>
+      }}
+    >
+      <p>
+        Exchange: <strong>{exchange}</strong>
+      </p>
+      <p>
+        Pair: <strong>{pair}</strong>
+      </p>
       {isConnected ? (
-        <div className="pnl-data">
+        <div>
           <h4>Profit and Loss (PnL):</h4>
           <p>
             Unrealized PnL: <strong>{pnl.unrealized || 0}</strong>
@@ -76,7 +75,7 @@ const PnL = ({ exchange, pair }) => {
           </p>
         </div>
       ) : (
-        <p className="connection-status">Connecting to server...</p>
+        <p style={{ color: theme.palette.error.main }}>Connecting to server...</p>
       )}
     </div>
   );

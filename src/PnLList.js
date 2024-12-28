@@ -1,48 +1,74 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Checkbox, FormControlLabel, Button, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 
 const PNLList = () => {
-  const defaultPNLData = [
-    { id: 1, exchange: "binance", pair: "BTC/USDT", realized: "prepare to loading...", unrealized: "prepare to loading..." },
-    { id: 2, exchange: "binance", pair: "ETH/USDT", realized: "prepare to loading...", unrealized: "prepare to loading..." },
-    { id: 3, exchange: "bybit", pair: "XRP/USDT", realized: "prepare to loading...", unrealized: "prepare to loading..." },
-  ];
+  const loadSavedPNLData = () => {
+    const savedPNLData = localStorage.getItem("pnlData");
+    return savedPNLData ? JSON.parse(savedPNLData) : [];
+  };
 
-  const [pnlData, setPnlData] = useState(defaultPNLData);
+  const [pnlData, setPnlData] = useState(loadSavedPNLData());
   const [filterModel, setFilterModel] = useState({
     items: [
       { columnField: "exchange", operatorValue: "contains", value: "" },
-      { columnField: "pair", operatorValue: "contains", value: "" },
-      { columnField: "realized", operatorValue: "contains", value: "" },
-      { columnField: "unrealized", operatorValue: "contains", value: "" },
     ],
   });
-  const [caseSensitive, setCaseSensitive] = useState(false); // State for the case-sensitive checkbox
-  const [openFilterDialog, setOpenFilterDialog] = useState(false); // State to open/close filter dialog
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [openFilterDialog, setOpenFilterDialog] = useState(false);
+  const [filteredRows, setFilteredRows] = useState(pnlData);
 
   const columns = [
     { field: "exchange", headerName: "Exchange", width: 150 },
     { field: "pair", headerName: "Trading Pair", width: 150 },
     { field: "realized", headerName: "Realized", width: 150 },
     { field: "unrealized", headerName: "Unrealized", width: 150 },
+    { field: "lastUpdate", headerName: "Last Update", width: 180 },
   ];
 
-  // Simulating WebSocket connection
+  // WebSocket data simulation
   useEffect(() => {
-    const socket = new WebSocket("ws://your-websocket-url");
+    const socket = new WebSocket("ws://localhost:10999/ws");
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      const { exchange, pair, realized, unrealized } = data;
+      const { exchange, trading_pair, realized, unrealized } = data.pnl;
+      const currentTime = new Date().toLocaleString();
 
-      setPnlData((prevPnlData) =>
-        prevPnlData.map((pnl) =>
-          pnl.exchange === exchange && pnl.pair === pair
-            ? { ...pnl, realized, unrealized }
-            : pnl
-        )
-      );
+      setPnlData((prevPNLData) => {
+        const existingIndex = prevPNLData.findIndex(
+          (pnl) => pnl.exchange === exchange && pnl.pair === trading_pair
+        );
+
+        if (existingIndex !== -1) {
+          const updatedPNLData = prevPNLData.map((pnl, index) =>
+            index === existingIndex
+              ? {
+                  ...pnl,
+                  realized,
+                  unrealized,
+                  lastUpdate: currentTime,
+                }
+              : pnl
+          );
+          localStorage.setItem("pnlData", JSON.stringify(updatedPNLData));
+          return updatedPNLData;
+        } else {
+          const newPNLData = [
+            ...prevPNLData,
+            {
+              id: Date.now(),
+              exchange,
+              pair: trading_pair,
+              realized,
+              unrealized,
+              lastUpdate: currentTime,
+            },
+          ];
+          localStorage.setItem("pnlData", JSON.stringify(newPNLData));
+          return newPNLData;
+        }
+      });
     };
 
     return () => {
@@ -50,65 +76,89 @@ const PNLList = () => {
     };
   }, []);
 
+  // Apply filters
+  useEffect(() => {
+    const applyFilters = () => {
+      const { columnField, operatorValue, value } = filterModel.items[0] || {};
+      const newFilteredRows = pnlData.filter((pnl) => {
+        if (!columnField || !operatorValue || !value) return true;
+
+        const cellValue = pnl[columnField]?.toString() || "";
+        const compareValue = caseSensitive ? cellValue : cellValue.toLowerCase();
+        const compareFilter = caseSensitive ? value : value.toLowerCase();
+
+        switch (operatorValue) {
+          case "contains":
+            return compareValue.includes(compareFilter);
+          case "equals":
+            return compareValue === compareFilter;
+          case "regex":
+            try {
+              const regex = new RegExp(value, caseSensitive ? "" : "i");
+              return regex.test(cellValue);
+            } catch (e) {
+              console.error("Invalid regex:", value);
+              return false;
+            }
+          default:
+            return true;
+        }
+      });
+
+      setFilteredRows(newFilteredRows);
+    };
+
+    applyFilters();
+  }, [filterModel, caseSensitive, pnlData]);
+
+  // Handling filter model change
   const handleFilterModelChange = (newFilterModel) => {
     if (JSON.stringify(newFilterModel.items) !== JSON.stringify(filterModel.items)) {
       setFilterModel(newFilterModel);
     }
   };
 
+  // Handling case-sensitive checkbox change
   const handleCaseSensitiveChange = (event) => {
-    setCaseSensitive(event.target.checked); // Update checkbox state for case sensitivity
+    setCaseSensitive(event.target.checked);
   };
 
+  // Handling filter dialog open/close
   const handleOpenFilterDialog = () => {
-    setOpenFilterDialog(true); // Open the filter settings dialog
+    setOpenFilterDialog(true);
   };
 
   const handleCloseFilterDialog = () => {
-    setOpenFilterDialog(false); // Close the filter dialog
+    setOpenFilterDialog(false);
   };
 
-  // Filtering the rows based on the filter model and case sensitivity
-  const filteredRows = pnlData.filter((pnl) => {
-    return filterModel.items.every((filter) => {
-      const { columnField, operatorValue, value } = filter;
-
-      // Get the cell value and convert it to a string
-      const cellValue = pnl[columnField] ? pnl[columnField].toString() : "";
-      const filterValue = value ? value : ""; // Use filter value if provided
-
-      const compareValue = caseSensitive ? cellValue : cellValue.toLowerCase(); // Check for case sensitivity
-      const compareFilter = caseSensitive ? filterValue : filterValue.toLowerCase();
-
-      switch (operatorValue) {
-        case "contains":
-          return compareValue.includes(compareFilter); // Apply filtering with case sensitivity
-        case "equals":
-          return compareValue === compareFilter;
-        case "regex": // Added regex support
-          try {
-            const regex = new RegExp(filterValue, "i"); // "i" flag for ignoring case
-            return regex.test(cellValue);
-          } catch (error) {
-            console.error("Invalid regular expression:", filterValue);
-            return false; // In case of invalid regex, skip the row
-          }
-        default:
-          return true;
-      }
-    });
-  });
+  // Clear all data in DataGrid
+  const handleClearData = () => {
+    setPnlData([]);
+    setFilteredRows([]);
+    localStorage.removeItem("pnlData");
+  };
 
   return (
-    <Box sx={{ height: 400, padding: 2 }}>
-      {/* Button to open filter settings dialog */}
-      <Button variant="outlined" color="primary" onClick={handleOpenFilterDialog}
-          sx={{ marginBottom: 2 }} // Adds 20px bottom margin (equivalent to 2 spacing units in Material UI)
+    <Box sx={{ height: "100%", padding: 2 }}>
+      <Button
+        variant="outlined"
+        color="primary"
+        onClick={handleOpenFilterDialog}
+        sx={{ marginBottom: 2 }}
       >
         Open Filter Settings
       </Button>
 
-      {/* Filter settings dialog */}
+      <Button
+        variant="outlined"
+        color="secondary"
+        onClick={handleClearData}
+        sx={{ marginBottom: 2, marginLeft: 2 }}
+      >
+        Clear Data
+      </Button>
+
       <Dialog open={openFilterDialog} onClose={handleCloseFilterDialog}>
         <DialogTitle>Filter Settings</DialogTitle>
         <DialogContent>
@@ -133,8 +183,8 @@ const PNLList = () => {
       <DataGrid
         rows={filteredRows}
         columns={columns}
-        pageSize={5}
-        rowsPerPageOptions={[5]}
+        pageSize={10}
+        rowsPerPageOptions={[10, 25, 50]}
         checkboxSelection
         disableSelectionOnClick
         filterModel={filterModel}

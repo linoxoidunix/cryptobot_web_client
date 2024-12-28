@@ -1,26 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Checkbox, FormControlLabel, Button, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 
 const OrderBook = () => {
-  const defaultOrderBook = [
-    { id: 1, exchange: "binance", pair: "BTC/USDT", bestBid: "Fetching data...", bestOffer: "Fetching data...", spread: "Fetching data..." },
-    { id: 2, exchange: "binance", pair: "ETH/USDT", bestBid: "Fetching data...", bestOffer: "Fetching data...", spread: "Fetching data..." },
-    { id: 3, exchange: "bybit", pair: "XRP/USDT", bestBid: "Fetching data...", bestOffer: "Fetching data...", spread: "Fetching data..." },
-  ];
+  const loadSavedOrderBook = () => {
+    const savedOrderBook = localStorage.getItem("orderBook");
+    return savedOrderBook ? JSON.parse(savedOrderBook) : [];
+  };
 
-  const [orderBook, setOrderBook] = useState(defaultOrderBook);
+  const [orderBook, setOrderBook] = useState(loadSavedOrderBook());
   const [filterModel, setFilterModel] = useState({
     items: [
       { columnField: "exchange", operatorValue: "contains", value: "" },
-      { columnField: "pair", operatorValue: "contains", value: "" },
-      { columnField: "bestBid", operatorValue: "contains", value: "" },
-      { columnField: "bestOffer", operatorValue: "contains", value: "" },
-      { columnField: "spread", operatorValue: "contains", value: "" },
     ],
   });
-  const [caseSensitive, setCaseSensitive] = useState(false); // State for the case-sensitive checkbox
-  const [openFilterDialog, setOpenFilterDialog] = useState(false); // State to open/close filter dialog
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [openFilterDialog, setOpenFilterDialog] = useState(false);
+  const [filteredRows, setFilteredRows] = useState(orderBook);
 
   const columns = [
     { field: "exchange", headerName: "Exchange", width: 150 },
@@ -28,23 +24,54 @@ const OrderBook = () => {
     { field: "bestBid", headerName: "Best Bid", width: 150 },
     { field: "bestOffer", headerName: "Best Offer", width: 150 },
     { field: "spread", headerName: "Spread", width: 150 },
+    { field: "lastUpdate", headerName: "Last Update", width: 180 },
   ];
 
-  // Simulating WebSocket connection
+  // WebSocket data simulation
   useEffect(() => {
-    const socket = new WebSocket("ws://your-websocket-url");
+    const socket = new WebSocket("ws://localhost:10999/ws");
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      const { exchange, pair, bestBid, bestOffer, spread } = data;
+      const { exchange, trading_pair, best_bid, best_offer, spread } = data.orderBook;
+      const currentTime = new Date().toLocaleString(); // Get current time for "Last Update"
 
-      setOrderBook((prevOrderBook) =>
-        prevOrderBook.map((order) =>
-          order.exchange === exchange && order.pair === pair
-            ? { ...order, bestBid, bestOffer, spread }
-            : order
-        )
-      );
+      setOrderBook((prevOrderBook) => {
+        const existingIndex = prevOrderBook.findIndex(
+          (order) => order.exchange === exchange && order.pair === trading_pair
+        );
+        
+        if (existingIndex !== -1) {
+          const updatedOrderBook = prevOrderBook.map((order, index) =>
+            index === existingIndex
+              ? { 
+                  ...order, 
+                  bestBid: best_bid, 
+                  bestOffer: best_offer, 
+                  spread, 
+                  lastUpdate: currentTime // Update lastUpdate field
+                }
+              : order
+          );
+          localStorage.setItem("orderBook", JSON.stringify(updatedOrderBook)); // Save updated data to localStorage
+          return updatedOrderBook;
+        } else {
+          const newOrderBook = [
+            ...prevOrderBook,
+            { 
+              id: Date.now(), 
+              exchange, 
+              pair: trading_pair, 
+              bestBid: best_bid, 
+              bestOffer: best_offer, 
+              spread, 
+              lastUpdate: currentTime // Add lastUpdate field
+            },
+          ];
+          localStorage.setItem("orderBook", JSON.stringify(newOrderBook)); // Save new data to localStorage
+          return newOrderBook;
+        }
+      });
     };
 
     return () => {
@@ -52,68 +79,90 @@ const OrderBook = () => {
     };
   }, []);
 
+  // Apply filters
+  useEffect(() => {
+    const applyFilters = () => {
+      const { columnField, operatorValue, value } = filterModel.items[0] || {};
+      const newFilteredRows = orderBook.filter((order) => {
+        if (!columnField || !operatorValue || !value) return true;
+
+        const cellValue = order[columnField]?.toString() || "";
+        const compareValue = caseSensitive ? cellValue : cellValue.toLowerCase();
+        const compareFilter = caseSensitive ? value : value.toLowerCase();
+
+        switch (operatorValue) {
+          case "contains":
+            return compareValue.includes(compareFilter);
+          case "equals":
+            return compareValue === compareFilter;
+          case "regex":
+            try {
+              const regex = new RegExp(value, caseSensitive ? "" : "i");
+              return regex.test(cellValue);
+            } catch (e) {
+              console.error("Invalid regex:", value);
+              return false;
+            }
+          default:
+            return true;
+        }
+      });
+
+      setFilteredRows(newFilteredRows);
+    };
+
+    applyFilters();
+  }, [filterModel, caseSensitive, orderBook]);
+
+  // Handling filter model change
   const handleFilterModelChange = (newFilterModel) => {
     if (JSON.stringify(newFilterModel.items) !== JSON.stringify(filterModel.items)) {
       setFilterModel(newFilterModel);
     }
   };
 
+  // Handling case-sensitive checkbox change
   const handleCaseSensitiveChange = (event) => {
-    setCaseSensitive(event.target.checked); // Update checkbox state for case sensitivity
+    setCaseSensitive(event.target.checked);
   };
 
+  // Handling filter dialog open/close
   const handleOpenFilterDialog = () => {
-    setOpenFilterDialog(true); // Open the filter settings dialog
+    setOpenFilterDialog(true);
   };
 
   const handleCloseFilterDialog = () => {
-    setOpenFilterDialog(false); // Close the filter dialog
+    setOpenFilterDialog(false);
   };
 
-  // Filtering the rows based on the filter model and case sensitivity
-  const filteredRows = orderBook.filter((order) => {
-    return filterModel.items.every((filter) => {
-      const { columnField, operatorValue, value } = filter;
-
-      // Get the cell value and convert it to a string
-      const cellValue = order[columnField] ? order[columnField].toString() : "";
-      const filterValue = value ? value : ""; // Use filter value if provided
-
-      const compareValue = caseSensitive ? cellValue : cellValue.toLowerCase(); // Check for case sensitivity
-      const compareFilter = caseSensitive ? filterValue : filterValue.toLowerCase();
-
-      switch (operatorValue) {
-        case "contains":
-          return compareValue.includes(compareFilter); // Apply filtering with case sensitivity
-        case "equals":
-          return compareValue === compareFilter;
-        case "regex": // Added regex support
-          try {
-            const regex = new RegExp(filterValue, "i"); // "i" flag for ignoring case
-            return regex.test(cellValue);
-          } catch (error) {
-            console.error("Invalid regular expression:", filterValue);
-            return false; // In case of invalid regex, skip the row
-          }
-        default:
-          return true;
-      }
-    });
-  });
+  // Clear all data in DataGrid
+  const handleClearData = () => {
+    setOrderBook([]);  // Clear order book data
+    setFilteredRows([]);  // Clear filtered rows
+    localStorage.removeItem("orderBook"); // Clear localStorage as well
+  };
 
   return (
-    <Box sx={{ height: 400, padding: 2 }}>
-      {/* Button to open filter settings dialog */}
+    <Box sx={{ height: "100%", padding: 2 }}>
       <Button
         variant="outlined"
         color="primary"
         onClick={handleOpenFilterDialog}
-        sx={{ marginBottom: 2 }} // Adds 20px bottom margin
+        sx={{ marginBottom: 2 }}
       >
         Open Filter Settings
       </Button>
 
-      {/* Filter settings dialog */}
+      {/* Button to clear data */}
+      <Button
+        variant="outlined"
+        color="secondary"
+        onClick={handleClearData}
+        sx={{ marginBottom: 2, marginLeft: 2 }}
+      >
+        Clear Data
+      </Button>
+
       <Dialog open={openFilterDialog} onClose={handleCloseFilterDialog}>
         <DialogTitle>Filter Settings</DialogTitle>
         <DialogContent>
@@ -138,8 +187,8 @@ const OrderBook = () => {
       <DataGrid
         rows={filteredRows}
         columns={columns}
-        pageSize={5}
-        rowsPerPageOptions={[5]}
+        pageSize={10}
+        rowsPerPageOptions={[10, 25, 50]}
         checkboxSelection
         disableSelectionOnClick
         filterModel={filterModel}
