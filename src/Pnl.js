@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import { useTheme } from "@mui/material/styles";
+
 
 const Pnl = () => {
   const loadSavedPNLData = () => {
@@ -17,6 +19,7 @@ const Pnl = () => {
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
   const [filteredRows, setFilteredRows] = useState(pnlData);
+  const theme = useTheme(); // Получаем текущую тему из контекста
 
   const columns = [
     { field: "exchange", headerName: "Exchange", width: 150 },
@@ -158,21 +161,24 @@ const Pnl = () => {
   };
 
   return (
-    <Box sx={{ height: "100%", padding: 2 }}>
+    <Box 
+      sx={{
+        height: "100%",
+        padding: 2,
+        backgroundColor: theme.palette.background.primary, // Основной фон
+        color: theme.palette.text.primary, // Основной текст
+      }}
+    >
       <Button
         variant="outlined"
-        color="primary"
         onClick={handleOpenFilterDialog}
-        sx={{ marginBottom: 2 }}
       >
         Open Filter Settings
       </Button>
 
       <Button
         variant="outlined"
-        color="secondary"
         onClick={handleClearData}
-        sx={{ marginBottom: 2, marginLeft: 2 }}
       >
         Clear Data
       </Button>
@@ -207,9 +213,6 @@ const Pnl = () => {
         disableSelectionOnClick
         filterModel={filterModel}
         onFilterModelChange={handleFilterModelChange}
-        onRowSelectionModelChange={(selection) => {
-          console.log("Selected rows:", selection);
-        }}
       />
     </Box>
   );

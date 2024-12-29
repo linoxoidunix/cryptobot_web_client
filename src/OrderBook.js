@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import { useTheme } from "@mui/material/styles";
 
 const OrderBook = () => {
   const loadSavedOrderBook = () => {
-    const savedOrderBook = localStorage.getItem("orderBook");
+    const savedOrderBook = sessionStorage.getItem("orderBook");
     return savedOrderBook ? JSON.parse(savedOrderBook) : [];
   };
 
@@ -17,6 +18,7 @@ const OrderBook = () => {
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
   const [filteredRows, setFilteredRows] = useState(orderBook);
+  const theme = useTheme(); // Получаем текущую тему из контекста
 
   const columns = [
     { field: "exchange", headerName: "Exchange", width: 150 },
@@ -62,7 +64,7 @@ const OrderBook = () => {
                   }
                 : order
             );
-            localStorage.setItem("orderBook", JSON.stringify(updatedOrderBook)); // Save updated data to localStorage
+            sessionStorage.setItem("orderBook", JSON.stringify(updatedOrderBook)); // Save updated data to sessionStorage
             console.log(`Order book updated: ${exchange} - ${trading_pair}`);  // Логирование успешного обновления
             return updatedOrderBook;
           } else {
@@ -78,7 +80,7 @@ const OrderBook = () => {
                 lastUpdate: currentTime 
               },
             ];
-            localStorage.setItem("orderBook", JSON.stringify(newOrderBook)); // Save new data to localStorage
+            sessionStorage.setItem("orderBook", JSON.stringify(newOrderBook)); // Save new data to sessionStorage
             console.log(`New order book entry added: ${exchange} - ${trading_pair}`);  // Логирование добавления нового элемента
             return newOrderBook;
           }
@@ -161,16 +163,22 @@ const OrderBook = () => {
   const handleClearData = () => {
     setOrderBook([]);  // Clear order book data
     setFilteredRows([]);  // Clear filtered rows
-    localStorage.removeItem("orderBook"); // Clear localStorage as well
+    sessionStorage.removeItem("orderBook"); // Clear sessionStorage as well
   };
 
   return (
-    <Box sx={{ height: "100%", padding: 2 }}>
+    <Box
+      sx={{
+        height: "100%",
+        padding: 2,
+        backgroundColor: theme.palette.background.primary, // Основной фон
+        color: theme.palette.text.primary, // Основной текст
+      }}
+    >
+      {/* Button to open filter settings */}
       <Button
         variant="outlined"
-        color="primary"
         onClick={handleOpenFilterDialog}
-        sx={{ marginBottom: 2 }}
       >
         Open Filter Settings
       </Button>
@@ -178,34 +186,45 @@ const OrderBook = () => {
       {/* Button to clear data */}
       <Button
         variant="outlined"
-        color="secondary"
         onClick={handleClearData}
-        sx={{ marginBottom: 2, marginLeft: 2 }}
       >
         Clear Data
       </Button>
 
+      {/* Filter dialog */}
       <Dialog open={openFilterDialog} onClose={handleCloseFilterDialog}>
-        <DialogTitle>Filter Settings</DialogTitle>
+        <DialogTitle sx={{ color: theme.palette.text.primary }}>
+          Filter Settings
+        </DialogTitle>
         <DialogContent>
           <FormControlLabel
             control={
               <Checkbox
                 checked={caseSensitive}
                 onChange={handleCaseSensitiveChange}
-                color="primary"
+                sx={{
+                  color: theme.palette.text.secondary,
+                  "&.Mui-checked": { color: theme.palette.text.primary },
+                }}
               />
             }
             label="Case Sensitive"
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseFilterDialog} color="primary">
+          <Button
+            onClick={handleCloseFilterDialog}
+            sx={{
+              color: theme.palette.text.primary,
+              borderColor: theme.palette.text.secondary,
+            }}
+          >
             Close
           </Button>
         </DialogActions>
       </Dialog>
 
+      {/* DataGrid with themed styles */}
       <DataGrid
         rows={filteredRows}
         columns={columns}
@@ -215,9 +234,6 @@ const OrderBook = () => {
         disableSelectionOnClick
         filterModel={filterModel}
         onFilterModelChange={handleFilterModelChange}
-        onRowSelectionModelChange={(selection) => {
-          console.log("Selected rows:", selection);
-        }}
       />
     </Box>
   );

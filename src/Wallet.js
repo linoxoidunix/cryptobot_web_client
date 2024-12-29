@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import { useTheme } from "@mui/material/styles";
+
 
 const Wallet = () => {
   const loadSavedWalletData = () => {
@@ -15,11 +17,13 @@ const Wallet = () => {
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
   const [filteredRows, setFilteredRows] = useState(wallets);
+  const theme = useTheme(); // Получаем текущую тему из контекста
 
   const columns = [
     { field: "exchange", headerName: "Exchange", width: 150 },
     { field: "ticker", headerName: "Ticker", width: 150 },
     { field: "value", headerName: "Value", width: 200 },
+    { field: "lastUpdate", headerName: "Last Update", width: 180 },
   ];
 
   // WebSocket data simulation
@@ -142,21 +146,24 @@ const Wallet = () => {
   const handleCloseFilterDialog = () => setOpenFilterDialog(false);
 
   return (
-    <Box sx={{ height: "100%", padding: 2 }}>
+    <Box 
+      sx={{
+        height: "100%",
+        padding: 2,
+        backgroundColor: theme.palette.background.primary, // Основной фон
+        color: theme.palette.text.primary, // Основной текст
+      }}
+    >
       <Button
         variant="outlined"
-        color="primary"
         onClick={handleOpenFilterDialog}
-        sx={{ marginBottom: 2 }}
       >
         Open Filter Settings
       </Button>
 
       <Button
         variant="outlined"
-        color="secondary"
         onClick={handleClearData}
-        sx={{ marginBottom: 2, marginLeft: 2 }}
       >
         Clear Data
       </Button>
