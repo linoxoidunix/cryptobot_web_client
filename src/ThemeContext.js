@@ -57,6 +57,8 @@ const getThemeOverrides = (isDarkMode) => ({
         '&:hover': {
           borderColor: isDarkMode ? DARK_MODE_COLORS.text.primary : LIGHT_MODE_COLORS.text.primary,
         },
+        width: 'auto',  // Минимальная ширина для кнопки
+        alignSelf: 'flex-start',  // Выравнивание кнопок по началу
       },
     },
   },

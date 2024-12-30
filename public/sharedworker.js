@@ -56,11 +56,14 @@ onconnect = (e) => {
 
         clients.forEach(client => {
           const key = client.subscriptions;
-          console.log('{key}');
-          if (key && key in message) {
-            console.log(`Sending data to client subscribed to ${key}`);
-            client.postMessage(message[key]);  // Отправляем данные только тем, кто подписан на этот ключ
-          }
+          console.log(`${key}`);
+          client.subscriptions.forEach(subKey => {
+            if (subKey && subKey in message) {
+              console.log(`Sending data to client subscribed to ${subKey}`);
+              console.log(`Sending data ${JSON.stringify(message[subKey])}`);
+              client.postMessage({ key: subKey, data: message });  // Отправляем данные только тем, кто подписан на этот ключ
+            }
+          });
         });
       } else {
         console.log('No relevant data found in WebSocket message');

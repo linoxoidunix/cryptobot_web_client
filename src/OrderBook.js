@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid, useResizeContainer } from "@mui/x-data-grid";
 import { useTheme } from "@mui/material/styles";
+import { useSubscription } from "./App";
 
 const OrderBook = () => {
   const loadSavedOrderBook = () => {
@@ -10,15 +11,10 @@ const OrderBook = () => {
   };
 
   const [orderBook, setOrderBook] = useState(loadSavedOrderBook());
-  const [filterModel, setFilterModel] = useState({
-    items: [
-      { columnField: "exchange", operatorValue: "contains", value: "" },
-    ],
-  });
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
-  const [filteredRows, setFilteredRows] = useState(orderBook);
   const theme = useTheme(); // Получаем текущую тему из контекста
+  const subscriptionService = useSubscription();
 
   const columns = [
     { field: "exchange", headerName: "Exchange", width: 150 },
@@ -29,121 +25,36 @@ const OrderBook = () => {
     { field: "lastUpdate", headerName: "Last Update", width: 180 },
   ];
 
-  // WebSocket data simulation
   useEffect(() => {
-    console.log('Initializing SharedWorker...');  // Логирование начала инициализации
-  
-    const worker = new SharedWorker("/sharedworker.js");
-  
-    // Listen to messages from the shared worker
-    worker.port.onmessage = (event) => {
-      console.log('Received message from SharedWorker:', event.data);  // Логирование полученного сообщения от worker
-  
-      const data = event.data;
-      if (data && data.exchange && data.trading_pair && data.best_bid && data.best_offer && data.spread) {
-        const { exchange, trading_pair, best_bid, best_offer, spread } = data;
-        const currentTime = new Date().toLocaleString();
-  
-        console.log(`Updating order book for ${exchange} - ${trading_pair}...`);  // Логирование обновления данных для определенного exchange
-  
-        // Update orderBook state with the new data
-        setOrderBook((prevOrderBook) => {
-          const existingIndex = prevOrderBook.findIndex(
+    const handleUpdate = (data) => {
+    console.log("Received data:", data); // Проверим, что данные приходят
+      const { exchange, trading_pair, best_bid, best_offer, spread } = data || {};
+      const currentTime = new Date().toLocaleString();
+      if (exchange && trading_pair && best_bid && best_offer && spread) {
+        setOrderBook((prev) => {
+          const existingIndex = prev.findIndex(
             (order) => order.exchange === exchange && order.pair === trading_pair
           );
-  
           if (existingIndex !== -1) {
-            const updatedOrderBook = prevOrderBook.map((order, index) =>
+            return prev.map((order, index) =>
               index === existingIndex
-                ? { 
-                    ...order, 
-                    bestBid: best_bid, 
-                    bestOffer: best_offer, 
-                    spread, 
-                    lastUpdate: currentTime 
-                  }
+                ? { ...order, bestBid: best_bid, bestOffer: best_offer, spread, lastUpdate: currentTime }
                 : order
             );
-            sessionStorage.setItem("orderBook", JSON.stringify(updatedOrderBook)); // Save updated data to sessionStorage
-            console.log(`Order book updated: ${exchange} - ${trading_pair}`);  // Логирование успешного обновления
-            return updatedOrderBook;
-          } else {
-            const newOrderBook = [
-              ...prevOrderBook,
-              { 
-                id: Date.now(), 
-                exchange, 
-                pair: trading_pair, 
-                bestBid: best_bid, 
-                bestOffer: best_offer, 
-                spread, 
-                lastUpdate: currentTime 
-              },
-            ];
-            sessionStorage.setItem("orderBook", JSON.stringify(newOrderBook)); // Save new data to sessionStorage
-            console.log(`New order book entry added: ${exchange} - ${trading_pair}`);  // Логирование добавления нового элемента
-            return newOrderBook;
           }
+          return [
+            ...prev,
+            { id: `${exchange}-${trading_pair}`, exchange, pair: trading_pair, bestBid: best_bid, bestOffer: best_offer, spread, lastUpdate: currentTime },
+          ];
         });
-      } else {
-        console.warn('Invalid message data received:', data);  // Логирование ошибок в данных
       }
     };
+
+    console.log("Subscribing to orderbook...");
+    subscriptionService.subscribe("orderbook", handleUpdate);
   
-    // Subscribe to a key when component mounts (adjust key as needed)
-    console.log('Subscribing to key: orderBook');
-    worker.port.postMessage({ action: "subscribe", key: "orderBook" });
-  
-    return () => {
-      // Unsubscribe from the worker when the component unmounts
-      console.log('Unsubscribing from key: orderBook');
-      worker.port.postMessage({ action: "unsubscribe", key: "orderBook" });
-      worker.port.close();
-      console.log('Worker port closed');
-    };
-  }, []);
-
-  // Apply filters
-  useEffect(() => {
-    const applyFilters = () => {
-      const { columnField, operatorValue, value } = filterModel.items[0] || {};
-      const newFilteredRows = orderBook.filter((order) => {
-        if (!columnField || !operatorValue || !value) return true;
-
-        const cellValue = order[columnField]?.toString() || "";
-        const compareValue = caseSensitive ? cellValue : cellValue.toLowerCase();
-        const compareFilter = caseSensitive ? value : value.toLowerCase();
-
-        switch (operatorValue) {
-          case "contains":
-            return compareValue.includes(compareFilter);
-          case "equals":
-            return compareValue === compareFilter;
-          case "regex":
-            try {
-              const regex = new RegExp(value, caseSensitive ? "" : "i");
-              return regex.test(cellValue);
-            } catch (e) {
-              console.error("Invalid regex:", value);
-              return false;
-            }
-          default:
-            return true;
-        }
-      });
-
-      setFilteredRows(newFilteredRows);
-    };
-
-    applyFilters();
-  }, [filterModel, caseSensitive, orderBook]);
-
-  // Handling filter model change
-  const handleFilterModelChange = (newFilterModel) => {
-    if (JSON.stringify(newFilterModel.items) !== JSON.stringify(filterModel.items)) {
-      setFilterModel(newFilterModel);
-    }
-  };
+    return () => subscriptionService.unsubscribe("orderbook", handleUpdate);
+  }, [subscriptionService]);
 
   // Handling case-sensitive checkbox change
   const handleCaseSensitiveChange = (event) => {
@@ -161,36 +72,27 @@ const OrderBook = () => {
 
   // Clear all data in DataGrid
   const handleClearData = () => {
-    setOrderBook([]);  // Clear order book data
-    setFilteredRows([]);  // Clear filtered rows
+    setOrderBook([]); // Clear order book data
     sessionStorage.removeItem("orderBook"); // Clear sessionStorage as well
   };
 
   return (
-    <Box
-      sx={{
-        height: "100%",
-        padding: 2,
-        backgroundColor: theme.palette.background.primary, // Основной фон
-        color: theme.palette.text.primary, // Основной текст
-      }}
-    >
-      {/* Button to open filter settings */}
-      <Button
-        variant="outlined"
-        onClick={handleOpenFilterDialog}
-      >
-        Open Filter Settings
-      </Button>
-
-      {/* Button to clear data */}
-      <Button
-        variant="outlined"
-        onClick={handleClearData}
-      >
-        Clear Data
-      </Button>
-
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: theme.palette.background.primary,
+        color: theme.palette.text.primary,
+        }}>
+        {/* Верхняя строка с кнопками */}
+        <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'left', padding: 2 }}>
+          {/* Button to open filter settings */}
+          <Button variant="outlined" >
+            Open Filter Settings
+          </Button>
+    
+          {/* Button to clear data */}
+          <Button variant="outlined" onClick={handleClearData} sx={{ marginLeft: 2 }}>
+            Clear Data
+          </Button>
+        </Box>
+  
       {/* Filter dialog */}
       <Dialog open={openFilterDialog} onClose={handleCloseFilterDialog}>
         <DialogTitle sx={{ color: theme.palette.text.primary }}>
@@ -223,20 +125,19 @@ const OrderBook = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
+  
       {/* DataGrid with themed styles */}
       <DataGrid
-        rows={filteredRows}
+        rows={orderBook}
         columns={columns}
         pageSize={10}
         rowsPerPageOptions={[10, 25, 50]}
         checkboxSelection
         disableSelectionOnClick
-        filterModel={filterModel}
-        onFilterModelChange={handleFilterModelChange}
       />
     </Box>
   );
+  
 };
 
 export default OrderBook;
