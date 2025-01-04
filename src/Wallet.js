@@ -2,115 +2,130 @@ import React, { useState, useEffect } from "react";
 import { Box, Button } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useTheme } from "@mui/material/styles";
+import { useSubscription } from "./App";
 
-const Wallet = () => {
-  const loadSavedWalletData = () => {
-    const savedWalletData = sessionStorage.getItem("walletData");
-    return savedWalletData ? JSON.parse(savedWalletData) : [];
+const Pnl = () => {
+  const loadSavedPNLData = () => {
+    const savedPNLData = sessionStorage.getItem("pnlData");
+    return savedPNLData ? JSON.parse(savedPNLData) : [];
   };
 
-  const [wallets, setWallets] = useState(loadSavedWalletData());
+  const [pnlData, setPnlData] = useState(loadSavedPNLData());
+  const [height, setHeight] = useState(window.innerHeight - 100); // Начальная высота
   const theme = useTheme();
+  const subscriptionService = useSubscription();
 
   const columns = [
     { field: "exchange", headerName: "Exchange", width: 150 },
-    { field: "ticker", headerName: "Ticker", width: 150 },
-    { field: "value", headerName: "Value", width: 200 },
-    { field: "lastUpdate", headerName: "Last Update", width: 180 },
+    { field: "pair", headerName: "Trading Pair", width: 150 },
+    { field: "realized", headerName: "Realized", width: 150 },
+    { field: "unrealized", headerName: "Unrealized", width: 150 },
+    { field: "lastUpdate", headerName: "Timestamp", width: 180 },
   ];
+
+  // Обновляем высоту при изменении размеров окна
+  useEffect(() => {
+    const handleResize = () => setHeight(window.innerHeight - 100);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // WebSocket data simulation
   useEffect(() => {
-    console.log("Initializing SharedWorker for wallet data...");
-
-    const worker = new SharedWorker("/sharedworker.js");
-
-    worker.port.onmessage = (event) => {
-      console.log("Received message from SharedWorker:", event.data);
-
-      const data = event.data;
-      const { exchange, ticker, value } = data || {};
+    console.log("Subscription service in pnl change:", subscriptionService);
+    const handleUpdate = (data) => {
+      console.log("Received data:", data);
+      const { exchange, trading_pair, realized, unrealized } = data || {};
       const currentTime = new Date().toLocaleString();
-
-      if (exchange && ticker && value) {
-        setWallets((prevWalletData) => {
-          const existingIndex = prevWalletData.findIndex(
-            (obj) => obj.exchange === exchange && obj.ticker === ticker
+      if (exchange && trading_pair && realized && unrealized) {
+        setPnlData((prev) => {
+          const existingIndex = prev.findIndex(
+            (order) => order.exchange === exchange && order.pair === trading_pair
           );
-
           if (existingIndex !== -1) {
-            const updatedWalletData = prevWalletData.map((obj, index) =>
+            return prev.map((order, index) =>
               index === existingIndex
                 ? {
-                    ...obj,
-                    value,
+                    ...order,
+                    realized: realized,
+                    unrealized: unrealized,
                     lastUpdate: currentTime,
                   }
-                : obj
+                : order
             );
-            sessionStorage.setItem("walletData", JSON.stringify(updatedWalletData));
-            return updatedWalletData;
-          } else {
-            const newWalletData = [
-              ...prevWalletData,
-              {
-                id: Date.now(),
-                exchange,
-                ticker,
-                value,
-                lastUpdate: currentTime,
-              },
-            ];
-            sessionStorage.setItem("walletData", JSON.stringify(newWalletData));
-            return newWalletData;
           }
+          return [
+            ...prev,
+            {
+              id: `${exchange}-${trading_pair}`,
+              exchange,
+              pair: trading_pair,
+              realized: realized,
+              unrealized: unrealized,
+              lastUpdate: currentTime,
+            },
+          ];
         });
-      } else {
-        console.warn("Invalid wallet data received:", data);
       }
     };
 
-    worker.port.postMessage({ action: "subscribe", key: "wallet" });
+    console.log("Subscribing to orderbook...");
+    subscriptionService.subscribe("pnl", handleUpdate);
 
-    return () => {
-      console.log("Unsubscribing from wallet updates...");
-      worker.port.postMessage({ action: "unsubscribe", key: "wallet" });
-      worker.port.close();
-    };
-  }, []);
+    return () => subscriptionService.unsubscribe("pnl", handleUpdate);
+  }, [subscriptionService]);
 
+  // Clear all data in DataGrid
   const handleClearData = () => {
-    setWallets([]);
-    sessionStorage.removeItem("walletData");
+    setPnlData([]);
+    sessionStorage.removeItem("pnlData");
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: theme.palette.background.primary,
-      color: theme.palette.text.primary,
-      }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        backgroundColor: theme.palette.background.primary,
+        color: theme.palette.text.primary,
+      }}
+    >
       {/* Верхняя строка с кнопками */}
-      <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'left', padding: 2 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "left",
+          padding: 2,
+        }}
+      >
         {/* Button to open filter settings */}
-        <Button variant="outlined" >
-          Open Filter Settings
-        </Button>
-  
+        <Button variant="outlined">Open Filter Settings</Button>
+
         {/* Button to clear data */}
-        <Button variant="outlined" onClick={handleClearData} sx={{ marginLeft: 2 }}>
+        <Button
+          variant="outlined"
+          onClick={handleClearData}
+          sx={{ marginLeft: 2 }}
+        >
           Clear Data
         </Button>
       </Box>
 
-      <DataGrid
-        rows={wallets}
-        columns={columns}
-        pageSize={10}
-        rowsPerPageOptions={[10, 25, 50]}
-        checkboxSelection
-        disableSelectionOnClick
-      />
+      {/* DataGrid с динамической высотой */}
+      <Box sx={{ flexGrow: 1, height: height, width: "100%" }}>
+        <DataGrid
+          rows={pnlData || []}
+          columns={columns}
+          pageSize={10}
+          rowsPerPageOptions={[10, 25, 50]}
+          checkboxSelection
+          disableSelectionOnClick
+        />
+      </Box>
     </Box>
   );
 };
 
-export default Wallet;
+export default Pnl;

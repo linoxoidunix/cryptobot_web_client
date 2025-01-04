@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Box, Button} from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useTheme } from "@mui/material/styles";
 import { useSubscription } from "./App";
-
 
 const Pnl = () => {
   const loadSavedPNLData = () => {
@@ -12,6 +11,7 @@ const Pnl = () => {
   };
 
   const [pnlData, setPnlData] = useState(loadSavedPNLData());
+  const [height, setHeight] = useState(window.innerHeight - 100); // Устанавливаем начальную высоту
   const theme = useTheme(); // Получаем текущую тему из контекста
   const subscriptionService = useSubscription();
 
@@ -25,8 +25,9 @@ const Pnl = () => {
 
   // WebSocket data simulation
   useEffect(() => {
+    console.log("Subscription service in pnl change:", subscriptionService);
     const handleUpdate = (data) => {
-    console.log("Received data:", data); // Проверим, что данные приходят
+      console.log("Received data:", data); // Проверим, что данные приходят
       const { exchange, trading_pair, realized, unrealized } = data || {};
       const currentTime = new Date().toLocaleString();
       if (exchange && trading_pair && realized && unrealized) {
@@ -55,6 +56,13 @@ const Pnl = () => {
     return () => subscriptionService.unsubscribe("pnl", handleUpdate);
   }, [subscriptionService]);
 
+  // Обработчик изменения размера окна
+  useEffect(() => {
+    const handleResize = () => setHeight(window.innerHeight - 100); // Обновляем высоту, учитывая отступы
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Clear all data in DataGrid
   const handleClearData = () => {
     setPnlData([]);
@@ -62,9 +70,7 @@ const Pnl = () => {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: theme.palette.background.primary,
-      color: theme.palette.text.primary,
-      }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: theme.palette.background.primary, color: theme.palette.text.primary }}>
       {/* Верхняя строка с кнопками */}
       <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'left', padding: 2 }}>
         {/* Button to open filter settings */}
@@ -78,14 +84,17 @@ const Pnl = () => {
         </Button>
       </Box>
 
-      <DataGrid
-        rows={pnlData || []}
-        columns={columns}
-        pageSize={10}
-        rowsPerPageOptions={[10, 25, 50]}
-        checkboxSelection
-        disableSelectionOnClick
-      />
+      {/* DataGrid с динамическим размером */}
+      <Box sx={{ height: height, width: '100%' }}>
+        <DataGrid
+          rows={pnlData || []}
+          columns={columns}
+          pageSize={10}
+          rowsPerPageOptions={[10, 25, 50]}
+          checkboxSelection
+          disableSelectionOnClick
+        />
+      </Box>
     </Box>
   );
 };

@@ -71,9 +71,6 @@ const App = () => {
         >
           <Pnl />
         </Box>
-
-
-        
         
         <Box
           sx={{
