@@ -18,33 +18,36 @@ const OrderBook = () => {
 
   const columns = [
     { field: "exchange", headerName: "Exchange", width: 150 },
+    { field: "marketType", headerName: "Market Type", width: 150 },
     { field: "pair", headerName: "Trading Pair", width: 150 },
     { field: "bestBid", headerName: "Best Bid", width: 150 },
-    { field: "bestOffer", headerName: "Best Offer", width: 150 },
+    { field: "bestAsk", headerName: "Best Ask", width: 150 },
     { field: "spread", headerName: "Spread", width: 150 },
+    { field: "bestBidQty", headerName: "Best Bid Qty", width: 150 },
+    { field: "bestAskQty", headerName: "Best Ask Qty", width: 150 },
     { field: "lastUpdate", headerName: "Last Update", width: 180 },
   ];
 
   useEffect(() => {
     const handleUpdate = (data) => {
     console.log("Received data:", data); // Проверим, что данные приходят
-      const { exchange, trading_pair, best_bid, best_offer, spread } = data || {};
+      const { exchange, market_type, trading_pair, best_bid, best_ask, spread, best_bid_qty, best_ask_qty } = data || {};
       const currentTime = new Date().toLocaleString();
-      if (exchange && trading_pair && best_bid && best_offer && spread) {
+      if (exchange && market_type && trading_pair && best_bid && best_ask && spread && best_bid_qty && best_ask_qty) {
         setOrderBook((prev) => {
           const existingIndex = prev.findIndex(
-            (order) => order.exchange === exchange && order.pair === trading_pair
+            (order) => order.exchange === exchange && order.marketType === market_type && order.pair === trading_pair
           );
           if (existingIndex !== -1) {
             return prev.map((order, index) =>
               index === existingIndex
-                ? { ...order, bestBid: best_bid, bestOffer: best_offer, spread, lastUpdate: currentTime }
+                ? { ...order, marketType:market_type, bestBid: best_bid, bestAsk: best_ask, spread, bestBidQty:best_bid_qty, bestAskQty:best_ask_qty, lastUpdate: currentTime }
                 : order
             );
           }
           return [
             ...prev,
-            { id: `${exchange}-${trading_pair}`, exchange, pair: trading_pair, bestBid: best_bid, bestOffer: best_offer, spread, lastUpdate: currentTime },
+            { id: `${exchange}-${market_type}-${trading_pair}`, exchange, marketType:market_type, pair: trading_pair, bestBid: best_bid, bestAsk: best_ask, spread, bestBidQty:best_bid_qty, bestAskQty:best_ask_qty, lastUpdate: currentTime },
           ];
         });
       }
