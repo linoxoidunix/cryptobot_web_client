@@ -10,6 +10,9 @@ import subscriptionService from "./subscriptionService";
 import OrderBook from "./OrderBook.js";
 import Wallet from "./Wallet";
 import Pnl from "./Pnl";
+import Trade from "./Trade";
+import Settings from "./Settings";
+
 
 const SubscriptionContext = createContext();
 
@@ -45,7 +48,7 @@ const App = () => {
           <Tab label="OrderBook" />
           <Tab label="PnL" />
           <Tab label="Wallet" />
-          <Tab label="Dashboard" />
+          <Tab label="Trade" />
           <Tab label="Settings" />
         </Tabs>
 
@@ -76,8 +79,6 @@ const App = () => {
           sx={{
             display: tabValue === 2 ? "block" : "none",
             height: "100vh",  // Пример высоты для вкладки
-
-            // position: "absolute",
           }}
         >
           <Wallet />
@@ -86,27 +87,88 @@ const App = () => {
         <Box
           sx={{
             display: tabValue === 3 ? "block" : "none",
-            position: "absolute",
             height: "100vh",  // Пример высоты для вкладки
 
           }}
         >
-          <h2>Dashboard Content</h2>
+          <Trade />
         </Box>
 
         <Box
           sx={{
             display: tabValue === 4 ? "block" : "none",
-            position: "absolute",
             height: "100vh",  // Пример высоты для вкладки
 
           }}
         >
-          <h2>Settings</h2>
-        </Box>
+            <Settings />
+          </Box>
         </Box>
     </SubscriptionContext.Provider>
   );
 };
 
 export default App;
+
+//----------------------------------------------------------------
+// import React from 'react';
+// import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+
+// function App() {
+//   return (
+//     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+//       <PanelGroup direction="horizontal" style={{ flexGrow: 1 }}>
+//         {/* Панель 1 */}
+//         <Panel>
+//           <div style={{ padding: '20px' }}>Панель 1</div>
+//         </Panel>
+
+//         {/* Разделитель с кастомными стилями */}
+//         <PanelResizeHandle>
+//           <div
+//             style={{
+//               background: '#aaa', // Цвет разделителя
+//               cursor: 'ew-resize', // Курсор изменения размера
+//               width: '4px', // Ширина разделителя
+//               height: '100%', // Разделитель будет растянут на всю высоту
+//             }}
+//           />
+//         </PanelResizeHandle>
+
+//         {/* Панель 2 */}
+//         <Panel>
+//           <div style={{ padding: '20px' }}>Панель 2</div>
+//         </Panel>
+
+//         {/* Еще один разделитель */}
+//         <PanelResizeHandle>
+//           <div
+//             style={{
+//               background: '#aaa', // Цвет разделителя
+//               cursor: 'ew-resize', // Курсор изменения размера
+//               width: '4px', // Ширина разделителя
+//               height: '100%', // Разделитель будет растянут на всю высоту
+//             }}
+//           />
+//         </PanelResizeHandle>
+
+//         {/* Панель 3 */}
+//         <Panel>
+//           <div style={{ padding: '20px' }}>Панель 3</div>
+//         </Panel>
+//       </PanelGroup>
+//     </div>
+//   );
+// }
+
+// export default App;
+
+
+
+
+
+
+
+
+
+
